@@ -51,14 +51,18 @@ function Jecco.Atlas(grid::SpecCartGrid3D{T}) where {T}
     Atlas([inner_chart; outer_charts])
 end
 
+
 struct Filters{F1}
     exp_filter    :: F1
 end
+
+
 function Filters(filter_gamma::T, KO_order::Int, sigma_diss::T,
                  Nu::Int, Nx::Int, Ny::Int) where {T}
     exp_filter    = Exp_Filter{1}(filter_gamma, Nu, Nx, Ny)
     Filters{typeof(exp_filter)}(exp_filter)
 end
+
 
 struct System{GT,Cu,Cx,Cy,TDu,TDx,TDy,TI,TF,TDKOx,TDKOy}
     gridtype    :: GT
@@ -105,6 +109,7 @@ function System(gridtype::GT, ucoord::GaussLobattoCoord,
                                        Du, Duu, Dx, Dxx, Dy, Dyy, uinterp, filters,
                                        DKOx, DKOy)
 end
+
 
 Base.size(sys::System) = (sys.ucoord.nodes, sys.xcoord.nodes, sys.ycoord.nodes)
 
@@ -236,6 +241,7 @@ function BulkDerivPartition(grid::SpecCartGrid3D{T}) where {T}
 
     BulkPartition((bulk_in, bulk_out...))
 end
+
 function BulkDerivPartition(systems::SystemPartition)
     T     = Jecco.coord_eltype(systems[1].ucoord)
     bulks = [BulkDeriv{T}(undef, size(sys)...) for sys in systems]

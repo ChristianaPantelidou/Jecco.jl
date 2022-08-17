@@ -60,7 +60,7 @@ function run_model(grid::SpecCartGrid3D, id::InitialData, evoleq::EvolutionEquat
            horizoncache, systems, evoleq)
     end
 
-    # full state vector
+    # full state vector: all variables
     evolvars  = EvolVars(boundary, gauge, bulkevols)
 
     # function that updates the state vector
@@ -103,11 +103,11 @@ function run_model(grid::SpecCartGrid3D, id::InitialData, evoleq::EvolutionEquat
 
     # prepare functions to write data
     output_evol = output_writer(evolvars, chart2D, atlas, tinfo, io,
-                                evoleq.potential, evoleq.phi0)
+                                evoleq.potential)
 
     if io.out_bulkconstrained_every > 0 || io.out_bulkconstrained_every_t > 0
         output_constrained = output_writer(bulkconstrains, atlas, tinfo, io,
-                                           evoleq.potential, evoleq.phi0)
+                                           evoleq.potential)
     else
         output_constrained = x -> nothing
     end

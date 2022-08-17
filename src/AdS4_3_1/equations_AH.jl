@@ -3,17 +3,16 @@ function AH_eq_coeff(vars::Tuple, ::Outer)
     (
         sigma0, sigma0_x, sigma0_y, sigma0_xx, sigma0_yy, sigma0_xy,
         xi    , xi_x    , xi_y    , xi_xx    , xi_yy, xi_xy,
-        B1   , B2   , G   ,  S    , Fx    , Fy    , Sd ,
-        B1p  , B2p  , Gp  ,  Sp   , Fxp   , Fyp   , Sdp,
-        B1pp , B2pp , Gpp ,  Spp  , Fxpp  , Fypp  ,
-        B1_x , B2_x , G_x ,  S_x  , Fx_x  , Fy_x  , Sd_x,
-	B1_y , B2_y , G_y ,  S_y  , Fx_y  , Fy_y  , Sd_y,
-        B1p_x, B2p_x, Gp_x,  Sp_x , Fxp_x , Fyp_x ,
-        B1p_y, B2p_y, Gp_y,  Sp_y , Fxp_y , Fyp_y ,
+        B1   ,  G   ,  S    , Fx    , Fy    , Sd ,
+        B1p  , Gp  ,  Sp   , Fxp   , Fyp   , Sdp,
+        B1pp , Gpp ,  Spp  , Fxpp  , Fypp  ,
+        B1_x , G_x ,  S_x  , Fx_x  , Fy_x  , Sd_x,
+	B1_y , G_y ,  S_y  , Fx_y  , Fy_y  , Sd_y,
+        B1p_x, Gp_x,  Sp_x , Fxp_x , Fyp_x ,
+        B1p_y,  Gp_y,  Sp_y , Fxp_y , Fyp_y ,
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
     @tilde_outer("S")
     @tilde_outer("Fx")
@@ -21,7 +20,6 @@ function AH_eq_coeff(vars::Tuple, ::Outer)
     @tilde_outer("Sd")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
     @hat_outer("S")
     @hat_outer("Fx")
@@ -29,14 +27,12 @@ function AH_eq_coeff(vars::Tuple, ::Outer)
     @hat_outer("Sd")
 
     @tilde_outer("B1p")
-    @tilde_outer("B2p")
     @tilde_outer("Gp")
     @tilde_outer("Sp")
     @tilde_outer("Fxp")
     @tilde_outer("Fyp")
 
     @hat_outer("B1p")
-    @hat_outer("B2p")
     @hat_outer("Gp")
     @hat_outer("Sp")
     @hat_outer("Fxp")
@@ -178,15 +174,14 @@ function AH_eq_res(vars::Tuple, ::Outer)
     (
         sigma0, sigma0_x, sigma0_y, sigma0_xx, sigma0_yy, sigma0_xy,
         xi    , xi_x    , xi_y    , xi_xx    , xi_yy, xi_xy,
-        B1   , B2   , G   ,  S    , Fx    , Fy    , Sd ,
-        B1p  , B2p  , Gp  ,  Sp   , Fxp   , Fyp   , Sdp,
-        B1pp , B2pp , Gpp ,  Spp  , Fxpp  , Fypp  ,
-        B1_x , B2_x , G_x ,  S_x  , Fx_x  , Fy_x  , Sd_x,
-        B1_y , B2_y , G_y ,  S_y  , Fx_y  , Fy_y  , Sd_y,
+        B1   ,  G   ,  S    , Fx    , Fy    , Sd ,
+        B1p  ,  Gp  ,  Sp   , Fxp   , Fyp   , Sdp,
+        B1pp ,  Gpp ,  Spp  , Fxpp  , Fypp  ,
+        B1_x ,  G_x ,  S_x  , Fx_x  , Fy_x  , Sd_x,
+        B1_y ,  G_y ,  S_y  , Fx_y  , Fy_y  , Sd_y,
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
     @tilde_outer("S")
     @tilde_outer("Fx")
@@ -194,7 +189,6 @@ function AH_eq_res(vars::Tuple, ::Outer)
     @tilde_outer("Sd")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
     @hat_outer("S")
     @hat_outer("Fx")

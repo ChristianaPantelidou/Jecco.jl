@@ -4,12 +4,10 @@
 We use these macros as shorthand notation. For instance
 
   @tilde_inner("B1")
-  @hat_inner("B2")
 
 should expand to
 
-  B1t = B1_x - (Fx * u * u + xi_x) * B1p
-  B2h = B2_y - (Fy * u * u + xi_y) * B2p
+  B1t = B1_x -  (Fx * u + xi_x) * B1p
 
 etc.
 
@@ -18,13 +16,13 @@ macro tilde_inner(fname::String)
     ft    = Symbol(fname, "t")
     f_x   = Symbol(fname, "_x")
     fp    = Symbol(fname, "p")
-    return esc( :($ft = $f_x - (Fx * u * u + xi_x) * $fp) )
+    return esc( :($ft = $f_x - (Fx * u + xi_x) * $fp) )
 end
 macro hat_inner(fname::String)
     fh    = Symbol(fname, "h")
     f_y   = Symbol(fname, "_y")
     fp    = Symbol(fname, "p")
-    return esc( :($fh = $f_y - (Fy * u * u + xi_y) * $fp) )
+    return esc( :($fh = $f_y - (Fy * u + xi_y) * $fp) )
 end
 
 macro bar_inner(fname::String)
@@ -32,7 +30,7 @@ macro bar_inner(fname::String)
     f_xx  = Symbol(fname, "_xx")
     fpp   = Symbol(fname, "pp")
     fp_x  = Symbol(fname, "p_x")
-    return esc( :($fb = $f_xx + (Fx * u * u + xi_x) * ( -2*($fp_x) + (Fx * u * u + xi_x) * ($fpp) )) )
+    return esc( :($fb = $f_xx + (Fx * u + xi_x) * ( -2*($fp_x) + (Fx * u + xi_x) * ($fpp) )) )
 end
 
 macro star_inner(fname::String)
@@ -40,7 +38,7 @@ macro star_inner(fname::String)
     f_yy  = Symbol(fname, "_yy")
     fpp   = Symbol(fname, "pp")
     fp_y  = Symbol(fname, "p_y")
-    return esc( :($fs = $f_yy + (Fy * u * u + xi_y) * ( -2*($fp_y) + (Fy * u * u + xi_y) * ($fpp) )) )
+    return esc( :($fs = $f_yy + (Fy * u + xi_y) * ( -2*($fp_y) + (Fy * u + xi_y)* ($fpp) )) )
 end
 
 macro cross_inner(fname::String)
@@ -49,8 +47,8 @@ macro cross_inner(fname::String)
     fpp   = Symbol(fname, "pp")
     fp_x  = Symbol(fname, "p_x")
     fp_y  = Symbol(fname, "p_y")
-    return esc( :($fc = $f_xy  - (Fx * u * u + xi_x) * ($fp_y) -
-                  (Fy * u * u + xi_y) * ( $fp_x - (Fx * u * u + xi_x) * ($fpp) ) ) )
+    return esc( :($fc = $f_xy  - (Fx * u + xi_x) * ($fp_y) -
+                  (Fy * u + xi_y) * ( $fp_x -(Fx * u + xi_x) * ($fpp) ) ) )
 end
 
 
@@ -59,7 +57,7 @@ end
 # (A d_uu + B d_u + C Id) f = -S
 
 function S_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
-    (phi0, u, xi, B1, B1p, B2, B2p, G, Gp, phi, phip) = vars
+    (phi0, u, xi, B1, B1p, G, Gp) = vars
 
     x0 = u^7
     x1 = u^6
@@ -123,14 +121,14 @@ end
 
 function Fxy_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::Tuple, ::Inner)
     (
-        phi0, u, xi, xi_x, xi_y,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,
-        B1pp   ,    B2pp   ,    Gpp    ,                Spp    ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,                Sp_x   ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,                Sp_y   ,
+        u, xi, xi_x, xi_y,
+        B1     ,        G      ,       S      ,
+        B1p    ,        Gp     ,       Sp     ,
+        B1pp   ,        Gpp    ,       Spp    ,
+        B1_x   ,        G_x    ,       S_x    ,
+        B1_y   ,        G_y    ,       S_y    ,
+        B1p_x  ,        Gp_x   ,       Sp_x   ,
+        B1p_y  ,        Gp_y   ,       Sp_y   ,
     ) = vars
 
     u2 = u*u
@@ -190,45 +188,37 @@ end
 
 function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
     (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
+        potential,  u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1     ,        G      ,        S      ,    Fx     ,    Fy     ,
+        B1p    ,        Gp     ,        Sp     ,    Fxp    ,    Fyp    ,
+        B1pp   ,        Gpp    ,        Spp    ,    Fxpp   ,    Fypp   ,
+        B1_x   ,        G_x    ,        S_x    ,    Fx_x   ,    Fy_x   ,
+        B1_y   ,        G_y    ,        S_y    ,    Fx_y   ,    Fy_y   ,
+        B1p_x  ,        Gp_x   ,        Sp_x   ,    Fxp_x  ,    Fyp_x  ,
+        B1p_y  ,        Gp_y   ,        Sp_y   ,    Fxp_y  ,    Fyp_y  ,
+        B1_xx  ,        G_xx   ,        S_xx   ,
+        B1_yy  ,        G_yy   ,        S_yy   ,
+                        G_xy   ,        S_xy
     ) = vars
 
     @tilde_inner("B1")
-    @tilde_inner("B2")
     @tilde_inner("G")
-    @tilde_inner("phi")
     @tilde_inner("S")
     @tilde_inner("Fx")
     @tilde_inner("Fy")
 
     @hat_inner("B1")
-    @hat_inner("B2")
     @hat_inner("G")
-    @hat_inner("phi")
     @hat_inner("S")
     @hat_inner("Fx")
     @hat_inner("Fy")
 
     @bar_inner("B1")
-    @bar_inner("B2")
     @bar_inner("G")
-    @bar_inner("phi")
     @bar_inner("S")
 
     @star_inner("B1")
-    @star_inner("B2")
     @star_inner("G")
-    @star_inner("phi")
     @star_inner("S")
 
     @tilde_inner("Sp")
@@ -239,11 +229,9 @@ function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
     @hat_inner("Fxp")
     @hat_inner("Fyp")
 
-    @cross_inner("B2")
     @cross_inner("G")
     @cross_inner("S")
 
-    phiouter = u * phi0 - u^2 * phi0 * xi + u^3 * phi0^3 * phi
 
     x0 = u^2
     x1 = u^4
@@ -729,398 +717,6 @@ function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
 end
 
 
-function B2d_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
-    (
-        phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
-    ) = vars
-
-    @tilde_inner("B1")
-    @tilde_inner("B2")
-    @tilde_inner("G")
-    @tilde_inner("phi")
-    @tilde_inner("S")
-    @tilde_inner("Fx")
-    @tilde_inner("Fy")
-
-    @hat_inner("B1")
-    @hat_inner("B2")
-    @hat_inner("G")
-    @hat_inner("phi")
-    @hat_inner("S")
-    @hat_inner("Fx")
-    @hat_inner("Fy")
-
-    @bar_inner("B1")
-    @bar_inner("B2")
-    @bar_inner("G")
-    @bar_inner("phi")
-    @bar_inner("S")
-
-    @star_inner("B1")
-    @star_inner("B2")
-    @star_inner("G")
-    @star_inner("phi")
-    @star_inner("S")
-
-    @tilde_inner("Fxp")
-    @tilde_inner("Fyp")
-
-    @hat_inner("Fxp")
-    @hat_inner("Fyp")
-
-    @cross_inner("B2")
-    @cross_inner("G")
-    @cross_inner("S")
-
-    x0 = u^2
-    x1 = u^4
-    x2 = B1*x1
-    x3 = exp(x2)
-    x4 = u*xi
-    x5 = S*x1
-    x6 = phi0^2
-    x7 = x0*x6
-    x8 = 3*x4 + 3*x5 + x7*(x4 - 1) + 3
-    x9 = x3*x8^3
-    x10 = 3*Sp
-    x11 = u^3
-    x12 = x10*x11
-    x13 = -x12
-    x14 = x13 + 3
-    x15 = 6*x4
-    x16 = 4*x4
-    x17 = 4*u
-    x18 = 6*x1
-    x19 = u^5
-    x20 = B2*x1
-    x21 = exp(x20)
-    x22 = G*x1
-    x23 = cosh(x22)
-    x24 = x21*x23
-    x25 = 3*Sh
-    x26 = 9*u*xi_y
-    x27 = 2*x6*xi
-    x28 = x27*xi_y
-    x29 = u*(S*x26 + x25 + x28)
-    x30 = 9*x5
-    x31 = 2*x4 - 1
-    x32 = x30 + x31*x7 - 3
-    x33 = Fy*x32
-    x34 = x29 + x33
-    x35 = 2*x2
-    x36 = exp(x20 + x35)
-    x37 = x23*x36
-    x38 = 3*St
-    x39 = S*u*xi_x
-    x40 = 2*xi
-    x41 = x6*xi_x
-    x42 = x40*x41
-    x43 = x38 + 9*x39 + x42
-    x44 = u*x43
-    x45 = Fx*x32
-    x46 = x44 + x45
-    x47 = sinh(x22)
-    x48 = exp(x2 + x20)
-    x49 = x47*x48
-    x50 = 2*u
-    x51 = G*x17
-    x52 = Fy*x0
-    x53 = Gh + x51*(x52 + xi_y)
-    x54 = Fx*x0
-    x55 = 4*xi
-    x56 = x41*x55
-    x57 = x11*x38
-    x58 = 18*x5
-    x59 = x7*(x16 - 1)
-    x60 = x58 + x59 - 3
-    x61 = x11*x25
-    x62 = 2*x0*x31*x6 + x58 - 6
-    x63 = x13 + x32
-    x64 = 9*S*u
-    x65 = u*xi_y
-    x66 = B1h*x1
-    x67 = 6*Sh
-    x68 = Fyp*x0
-    x69 = xi_y^2
-    x70 = 2*x6
-    x71 = B1*x19*xi_y
-    x72 = 9*S
-    x73 = B1h*x19*xi_y
-    x74 = 24*B2
-    x75 = 18*S
-    x76 = B2h*x19*xi_y
-    x77 = Fyp*xi_y
-    x78 = 18*S*x11
-    x79 = 36*S*x0
-    x80 = u^6
-    x81 = 36*B1*S*x80
-    x82 = 72*B2*S*x80
-    x83 = 6*u*x6*xi
-    x84 = x6*xi_y
-    x85 = 4*Fyp
-    x86 = x85*xi_y
-    x87 = x0*x6*xi
-    x88 = 8*B1*x19*x6*xi
-    x89 = 16*B2*x19*x6*xi
-    x90 = 2*x0
-    x91 = Fy^2
-    x92 = 12*B2
-    x93 = x1*x92
-    x94 = -x93
-    x95 = -x30
-    x96 = u^8
-    x97 = 36*S*x96
-    x98 = B2*x97
-    x99 = B2*x6*x80
-    x100 = 4*x99
-    x101 = x6*xi
-    x102 = x101*x11
-    x103 = u^7
-    x104 = B2*x103*x6*xi
-    x105 = 8*x104
-    x106 = x32*x35
-    x107 = 4*x20
-    x108 = x107 + x35 - 1
-    x109 = x11*x32
-    x110 = x6*(x0 - x11*x40) + x95 + 3
-    x111 = B2h*x11
-    x112 = 2*xi_y
-    x113 = 6*B1
-    x114 = x1*x113
-    x115 = B1*x97
-    x116 = 27*x5
-    x117 = 72*S
-    x118 = B2*x117*x96
-    x119 = -x116 + x118 + x12 + x94 + 3
-    x120 = u*xi_x
-    x121 = B1t*x1
-    x122 = 6*St
-    x123 = Fxp*x0
-    x124 = xi_x^2
-    x125 = St*x19
-    x126 = 9*S*xi_x
-    x127 = B1t*x19
-    x128 = Fxp*xi_x
-    x129 = B2t*x1
-    x130 = 4*Fxp
-    x131 = x130*xi_x
-    x132 = Fx^2
-    x133 = 3*x11
-    x134 = x103*x72
-    x135 = x19*x6
-    x136 = x27*x80
-    x137 = 2*xi_x
-    x138 = x110 + x12
-    x139 = 3*Fx
-    x140 = x139*xi_y
-    x141 = Fy*xi_x
-    x142 = 3*x141
-    x143 = Fyp*u
-    x144 = B2h*x1
-    x145 = B2t*Fy
-    x146 = 2*xi_xy
-    x147 = 24*Fx*Fy
-    x148 = B2*x80
-    x149 = 12*B2*x103
-    x150 = Fx*xi_y
-    x151 = B2h*Fx
-    x152 = B2h*x19
-    x153 = B2t*xi_y
-    x154 = 9*S*x19
-    x155 = Fx*Fy*x80
-    x156 = Fx*x19
-    x157 = Sp*x11
-    x158 = xi_x*xi_y
-    x159 = Fx*x11*x6
-    x160 = u^10
-    x161 = B2*Fx*Fy*x160
-    x162 = B2*x80*xi_x
-    x163 = x6*xi_x*xi_y
-    x164 = B2*Fx*x96
-    x165 = 4*Fy*xi_x
-    x166 = Fx*Fy
-    x167 = Fx*x6*xi
-    x168 = (2*Fyp)*xi_x
-    x169 = u^9
-    x170 = 16*Fy*x6*xi
-    x171 = B2*Fx*x103
-    x172 = 16*Fy*xi_x
-    x173 = 8*u*xi_y
-    x174 = Gp*x0
-    x175 = 2*Gh
-    x176 = 10*Fy*x11
-    x177 = 4*G*x11
-    x178 = 8*Gh
-    x179 = B1*Fy*x103
-    x180 = 8*Fy
-    x181 = B1h*G*x103
-    x182 = 8*G
-    x183 = B2*Fy*x103
-    x184 = 8*B2*Gh*x19
-    x185 = G*x103
-    x186 = Fy*xi_y
-    x187 = 56*G*x1
-    x188 = Gp*x11
-    x189 = 36*G*x80
-    x190 = 2*Gp*x19
-    x191 = 20*G*x0
-    x192 = 64*G*xi_y
-    x193 = 32*B1*G*x160
-    x194 = 32*B1*G*x80
-    x195 = 32*B2*G*x160
-    x196 = 32*B2*G*x80
-    x197 = 8*u*xi_x
-    x198 = Gt*x0
-    x199 = 2*Gt
-    x200 = 10*Fx*x11
-    x201 = 8*Gt
-    x202 = B1*Fx*x103
-    x203 = B1*xi_x
-    x204 = B1t*Fx
-    x205 = 8*G*x103
-    x206 = 8*G*xi_x
-    x207 = 8*B2*Gt*x19
-    x208 = B2t*Fx
-    x209 = B2t*xi_x
-    x210 = 8*G*x19
-    x211 = Fx*G*x19
-    x212 = Fx*xi_x
-    x213 = Fx*Gp*x11
-    x214 = G*x96
-    x215 = 4*B2p*u
-    x216 = Fx*u
-    x217 = 16*B2*x0
-    x218 = 2*x19
-    x219 = 20*Fx
-    x220 = 2*Fxp*x11
-    x221 = 16*x0*xi_x
-    x222 = 20*Fy
-    x223 = 2*Fyp*x11
-    x224 = 16*x0*xi_y
-    x225 = 8*B2h
-    x226 = 144*B2*x103
-    x227 = B2*Fx
-    x228 = 8*Fyp*x80
-    x229 = 112*x19*xi_y
-    x230 = B2*Fy
-    x231 = 8*Fxp*x80
-    x232 = 8*x20
-    x233 = 112*x19
-    x234 = 80*B2*x11
-    x235 = 4*Fx
-    x236 = B2p*x1*xi_y
-    x237 = G*xi_x
-    x238 = G*xi_y
-    x239 = B2^2
-    x240 = 32*x239
-    x241 = u^11
-    x242 = Fx*Fy*x241
-    x243 = 32*x169*x239
-    x244 = x103*xi_x*xi_y
-    x245 = G^2
-    x246 = 32*x245
-    x247 = 32*x169*x245
-    x248 = phi0^4
-    x249 = phih*x1*x248
-    x250 = phit*x248
-    x251 = phi0^6
-    x252 = 4*x11*x251
-    x253 = 12*phi*x19*x248
-    x254 = Fx*phi*x251*x80
-    x255 = 8*x1*x6*xi
-    x256 = 8*phih*x248*xi
-    x257 = phit*x248*xi
-    x258 = phi*x1*x251
-    x259 = phi*x1*x251*xi_y
-    x260 = 48*phi*x248*x96*xi
-    x261 = 48*phi*x248*x80*xi
-    x262 = 48*phi*x1*x248*xi
-    x263 = phi^2
-    x264 = 36*x169*x251*x263
-    x265 = xi^2
-    x266 = 36*x103*x251*x263
-    x267 = x19*x265*x6
-    x268 = 36*x19*x251*x263
-    x269 = -x232
-    x270 = B2p*x11
-    x271 = 2*x270
-    x272 = x269 + x271 + 2
-    x273 = 4*B1h*x19
-    x274 = 4*B1t*x19
-    x275 = G*xi_x*xi_y
-    x276 = 64*G
-    x277 = 2*B1p*u
-    x278 = 8*B1*x0
-    x279 = B2h*xi_y
-    x280 = 32*x0
-    x281 = 16*x11
-    x282 = B1*B1h
-    x283 = 16*Fy*x96
-    x284 = 16*x80*xi_y
-    x285 = 16*B1*x80
-    x286 = B1*Fy
-    x287 = 8*x2
-    x288 = 16*B2*Fy*x96
-    x289 = 16*B2*x80
-    x290 = 16*x20
-    x291 = G*Gh
-    x292 = 72*B1*x103
-    x293 = 40*B1*x11
-    x294 = 4*B1p*x80
-    x295 = 8*B2p*x80
-    x296 = 128*B2*x169
-    x297 = 64*B1*B2*x241
-    x298 = 64*B1*B2*x103
-    x299 = B1^2
-    x300 = 64*x169*x299
-    x301 = 64*x169*x239
-    x302 = 64*x169*x245
-    x303 = 32*x241*x299
-    x304 = 32*x103*x299
-    x305 = 32*x239*x241
-    x306 = 32*x103*x239
-    x307 = 32*x241*x245
-    x308 = 4*x19*x6
-    x309 = 32*x103*x245
-    x310 = 24*phi*x248
-    x311 = 24*phih
-    x312 = phih*x248*xi
-    x313 = 24*phi*x103*x248
-    x314 = 16*x6*x80*xi
-    x315 = 96*phi*x248*x80*xi
-    x316 = 72*x103*x251*x263
-    x317 = 32*x19*x265*x6
-    x318 = 16*x103*x265*x6
-    x319 = 16*x11*x265*x6
-    x320 = B1p*x11
-    x321 = B1*B1t
-    x322 = 16*Fx*x96
-    x323 = 16*x80*xi_x
-    x324 = B1*Fx*xi_x
-    x325 = 16*B2*x96
-    x326 = G*Gt
-    x327 = 16*xi
-
-    ABCS[1] = 0
-
-    ABCS[2] = -4*x0*x3*x8^4/27
-
-    ABCS[3] = -2*u*x9*(x14 + x15 + 15*x5 + x7*(x16 - 3))/9
-
-    ABCS[4] = -u*x8^2*(x23*(-2*Fyph*x21 + u*x21*(B1*B2h*x283 + B1*Fy*x296*xi_y + B1h^2*x218 + B1h*B2*x284 + B1h*x223 - B1h*x224 + B1h*x288 + 4*B1p*Fy*x1*xi_y - B1s*x50 - B2h^2*x218 + B2h*x273 - B2h*x288 - B2s*x17 + 16*Fy*Fyp*x148 + Fy*phi*x251*x311*x80 - 40*Fy*x144 + Fy*x19*x310*xi_y - 16*Fy*x19*x312 + 12*Fy*x65 + 2*Fyh*(-4*x2 + x269 + x271 + x320 + 2) + Fyp^2*u - 8*Fyp*x52 + Gh^2*x218 + phih^2*x252 - x1*x170*xi_y - 16*x11*x312*xi_y + x111*x85 + x180*x236 + x180*x249 + x186*x300 - x186*x301 + x186*x302 - x186*x315 + x186*x316 + x186*x317 - 224*x19*x230*xi_y + x215*xi_yy - x217*xi_yy - x222*x66 - x226*x91 + x228*x286 - x229*x286 - x234*x69 + x259*x311 - x260*x91 - x262*x69 + x264*x91 + x268*x69 + x277*xi_yy - x278*xi_yy - x279*x280 + x279*x285 - x279*x289 + x281*x91 + x282*x283 + x282*x284 + x283*x291 + x284*x291 + x287*x77 + x290*x77 - x292*x91 - x293*x69 + x294*x91 + x295*x91 + x297*x91 + x298*x69 + x303*x91 + x304*x69 - x305*x91 - x306*x69 + x307*x91 + x308*x91 + x309*x69 + x313*x91 - x314*x91 + x318*x91 + x319*x69 - x86) + x36*(-2*Fxpt + u*(-B1*B2t*x322 - B1*Fx*x231 + B1b*x50 - 4*B1p*Fx*x1*xi_x + B1t^2*x218 - B1t*B2*x323 - B1t*x220 + B1t*x221 - 224*B2*Fx*x19*xi_x - B2b*x17 + 8*B2p*Fx*x1*xi_x - B2t^2*x218 + B2t*x11*x130 - B2t*x274 + Fx*Fxp*x289 - Fx*phit*x19*x248*x327 + 8*Fx*x1*x250 - Fx*x1*x327*x6*xi_x - 40*Fx*x129 + Fx*x19*x310*xi_x + Fxp^2*u - 8*Fxp*x54 + Fxt*(4*x270 + x287 - x290 - 2*x320 + 4) + Gt^2*x218 + phit^2*x252 + 24*phit*x254 + 24*phit*x258*xi_x - 16*x11*x257*xi_x + x121*x219 - x124*x234 - x124*x262 + x124*x268 + x124*x293 - x124*x298 + x124*x304 - x124*x306 + x124*x309 + x124*x319 - x128*x287 + x128*x290 - x131 - x132*x226 - x132*x260 + x132*x264 + x132*x281 + x132*x292 - x132*x294 + x132*x295 - x132*x297 + x132*x303 - x132*x305 + x132*x307 + x132*x308 + x132*x313 - x132*x314 + x132*x318 - x204*x325 - x208*x325 - x209*x280 - x209*x285 - x209*x289 + x212*x300 - x212*x301 + x212*x302 - x212*x315 + x212*x316 + x212*x317 + x215*xi_xx + 12*x216*xi_x - x217*xi_xx + x233*x324 - x277*xi_xx + x278*xi_xx - x296*x324 + x321*x322 + x321*x323 + x322*x326 + x323*x326)) + x48*x90*(4*B1*Gt*x19*xi_y - 4*B1t*Fy*x185 + B2*Fy*x276*x96*xi_x + 64*B2*x275*x80 + Fxh*x174 - Fxh*x177 + 2*Fy*x188*xi_x + 4*Fyp*x11*x237 + Fyp*x198 + Fyt*x174 - Fyt*x177 - 8*G*u*xi_xy - 72*G*x155 - 2*Gc - Gh*x121 - 4*Gh*x19*x203 - Gh*x197 - Gh*x200 - 4*Gh*x202 + Gp*x146 + 4*Gp*x166*x19 - Gt*x173 - Gt*x176 + 4*Gt*x179 + Gt*x66 - 40*x0*x275 + x112*x213 + x123*x53 + x129*x175 - x141*x187 + x144*x199 + x145*x205 - x150*x187 + x151*x205 + x152*x206 + x153*x210 + x161*x276 + x164*x192 + x171*x178 + x181*x235 + x183*x201 + x184*xi_x + x207*xi_y + x211*x85 + x237*x273 - x238*x274)) + x47*(x48*(2*Fxph + 2*Fypt + x50*(B2*Fy*x233*xi_x + 8*B2*x145*x96 + 8*B2*x153*x80 + B2c*x17 + B2h*B2t*x218 - B2h*x220 + B2h*x221 - 8*B2p*Fx*Fy*x80 - B2p*x1*x165 - B2t*x223 + B2t*x224 - 16*Fx*Fy*x103*x265*x6 - 16*Fx*Fy*x11 - 8*Fx*Gh*x214 - 16*Fx*x267*xi_y - Fxh*x272 - Fxp*x143 - Fxp*x232*xi_y + (2*Fxp)*xi_y - 8*Fy*Gt*x214 - 12*Fy*phi*phit*x251*x80 - 4*Fy*x1*x250 + 16*Fy*x167*x80 - Fy*x19*x235*x6 + 8*Fy*x19*x257 - Fyp*x232*xi_x - Fyt*x272 - 8*Gh*x237*x80 - Gt*x175*x19 - 8*Gt*x238*x80 - phi*x103*x147*x248 - phih*phit*x252 - 12*phih*x254 - 12*phih*x258*xi_x - 12*phit*x259 - 6*u*x141 - 16*x11*x163*x265 + x11*x256*xi_x + 8*x11*x257*xi_y + x129*x222 + x130*x52 + x141*x243 - x141*x247 - x141*x253 + x141*x255 + x141*x261 - x141*x266 + x144*x219 + x150*x243 - x150*x247 - x150*x253 + x150*x255 + x150*x261 - x150*x266 + x156*x256 + x158*x234 + x158*x262 - x158*x268 + x162*x225 + x164*x225 + x166*x226 + x166*x260 - x166*x264 + x168 - x172*x267 - x215*xi_xy - 6*x216*xi_y + x217*xi_xy - x227*x228 + x227*x229 - x230*x231 - x235*x236 - x235*x249 + x240*x242 + x240*x244 - x242*x246 - x244*x246 + x54*x85)) - x90*(x21*(B1*Fy*x192*x96 + B2*Fy*x192*x96 + 8*B2h*Fy*x185 + 2*Fy*x188*xi_y + Fyh*x174 - Fyh*x177 - Gh*x173 - Gh*x176 + Gp*xi_yy - Gs + x144*x175 + x175*x66 + x178*x179 + x178*x183 + x178*x71 + x180*x181 + x182*x73 + x182*x76 + x184*xi_y - x186*x187 - x189*x91 + x190*x91 - x191*x69 + x193*x91 + x194*x69 + x195*x91 + x196*x69 - x51*xi_yy + x53*x68) + x36*(-64*B1*Fx*x214*xi_x + Fxp*x198 + Fxt*x0*(Gp - x51) + G*x11*x131 + 64*G*x164*xi_x - Gb + Gp*xi_xx - 8*Gt*x19*x203 - Gt*x197 - Gt*x200 - x121*x199 - x124*x191 - x124*x194 + x124*x196 - x127*x206 + x129*x199 + x130*x211 - x132*x189 + x132*x190 - x132*x193 + x132*x195 + x137*x213 + x171*x201 - x187*x212 - x201*x202 - x204*x205 + x205*x208 + x207*xi_x + x209*x210 - x51*xi_xx))))/9 - 2*x0*x8*(-x1*x23*x48*(Fx*x51*(x52*x62 + x60*xi_y + x61) + Fy*x51*(x57 + x60*xi_x) + 4*G*x0*(x25*xi_x + xi_y*(x38 + 18*x39 + x56)) + Gh*x44 + Gh*x45 + Gt*x29 + Gt*x33) + x1*x47*(x21*x34*x53 + x36*x46*(Gt + x51*(x54 + xi_x))) + x24*(Fyh*x63 - u*(B2h*Sh*x18 + 4*B2h*x1*x84*xi + Fy*(B1h*x109 + Fyp*x110*x50 + x108*x11*x67 + 2*x108*x59*xi_y + x111*x62 + x112*(-x114 + x115 + x119)) + Sh*x19*x74*xi_y - 18*Sh*x65 + 12*Sh*x71 - 3*Ss + x10*xi_yy + x25*x66 - x27*xi_yy + x28*x66 - x64*xi_yy - x67*x68 - x69*x70 - x69*x79 + x69*x81 + x69*x82 - x69*x83 + x69*x88 + x69*x89 + x72*x73 + x75*x76 - x77*x78 - x86*x87 + x90*x91*(-x100 - x102 + x105 + x106 + x12 + x94 + x95 + x98 - 3))) + x37*(Fxt*x63 + u*(12*B1*x125*xi_x - B2t*St*x18 - B2t*x19*x75*xi_x + Fx*(B1t*x109 + 2*B2t*(x133 - x134 + x135 - x136) + Fxp*x32*x50 + 2*St*x103*(x113 - x92) + x11*x122 - x137*(x114 - x115 + x119) + 2*x59*xi_x*(-x107 + x35 + 1)) + 3*Sb + 18*St*x120 - St*x19*x74*xi_x - x10*xi_xx + x121*x38 + x121*x42 + x122*x123 + x124*x70 + x124*x79 + x124*x81 - x124*x82 + x124*x83 + x124*x88 - x124*x89 + x126*x127 + x128*x78 - x129*x56 + x131*x87 + x132*x90*(x100 + x102 - x105 + x106 + x14 + x30 + x93 - x98) + x27*xi_xx + x64*xi_xx)) + x49*(Fxh*x138 + Fyt*x138 + x50*(B2*Fx*x169*x170 + 12*B2*Sh*x19*xi_x + 12*B2*x125*xi_y - Fx*Fyp*x154 + Fx*Sh*x149 - Fx*x61 - 4*Fx*x99*xi_y - Fxp*u*x34 + 6*Fy*Sp*x156 + Fy*St*x149 - Fy*x11*x55*x6*xi_x - 8*Fy*x164*x6 - 6*Fy*x54 - Fy*x57 - 2*Fyp*x1*x167 - Fyp*x11*x126 + Fyp*x159 + 72*S*x162*xi_y - 3*Sc - 9*Sh*x120 - St*x26 + x10*xi_xy - x101*x146 + x104*x172 - x111*x139 - x112*x41 - x116*x141 - x116*x150 + x117*x161 + x118*x141 + x118*x150 + x126*x152 + x129*x25 + x129*x28 - x133*x145 + x134*x145 + x134*x151 - x135*x145 - x135*x151 + x136*x145 + x136*x151 + x139*x143 + x140*x157 + x140 + x141*x7 - x141*x93 + x142*x157 + x142 + x144*x38 + x144*x42 - x147*x148 - x15*x163 - x150*x93 + x153*x154 - x155*x75 - x158*x79 + x158*x89 - 4*x159*xi*xi_y - x165*x99 - 2*x166*x19*x6*xi - x168*x87 + 16*x171*x6*xi*xi_y - x38*x68 + x54*x84 - x64*xi_xy)))/9 + 4*x19*(x24*x34^2 - x34*x49*(x43*x50 + 2*x45) + x37*x46^2)/9 + x9*(-B2*x17 + B2p)*(Sd*x18 - x7 + 3*(x4 + 1)^2)/9
-    
-    nothing
-end
 
 
 # this is another coupled equation, for B1d and Gd. the notation used is
@@ -1130,45 +726,37 @@ end
 
 function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::Tuple, ::Inner)
     (
-        phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
+        u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1     ,       G      ,        S      ,    Fx     ,    Fy     ,  Sd,
+        B1p    ,       Gp     ,        Sp     ,    Fxp    ,    Fyp    ,
+        B1pp   ,       Gpp    ,        Spp    ,    Fxpp   ,    Fypp   ,
+        B1_x   ,       G_x    ,        S_x    ,    Fx_x   ,    Fy_x   ,
+        B1_y   ,       G_y    ,        S_y    ,    Fx_y   ,    Fy_y   ,
+        B1p_x  ,       Gp_x   ,        Sp_x   ,    Fxp_x  ,    Fyp_x  ,
+        B1p_y  ,       Gp_y   ,        Sp_y   ,    Fxp_y  ,    Fyp_y  ,
+        B1_xx  ,       G_xx   ,        S_xx   ,
+        B1_yy  ,       G_yy   ,        S_yy   ,
+                       G_xy   ,        S_xy
     ) = vars
 
     @tilde_inner("B1")
-    @tilde_inner("B2")
     @tilde_inner("G")
-    @tilde_inner("phi")
     @tilde_inner("S")
     @tilde_inner("Fx")
     @tilde_inner("Fy")
 
     @hat_inner("B1")
-    @hat_inner("B2")
     @hat_inner("G")
-    @hat_inner("phi")
     @hat_inner("S")
     @hat_inner("Fx")
     @hat_inner("Fy")
 
     @bar_inner("B1")
-    @bar_inner("B2")
     @bar_inner("G")
-    @bar_inner("phi")
     @bar_inner("S")
 
     @star_inner("B1")
-    @star_inner("B2")
     @star_inner("G")
-    @star_inner("phi")
     @star_inner("S")
 
     @tilde_inner("Fxp")
@@ -1177,7 +765,6 @@ function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::T
     @hat_inner("Fxp")
     @hat_inner("Fyp")
 
-    @cross_inner("B2")
     @cross_inner("G")
     @cross_inner("S")
 
@@ -1466,352 +1053,41 @@ function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::T
     nothing
 end
 
-function phid_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
-    (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,    phi_xy,     S_xy
-    ) = vars
-
-    @tilde_inner("B1")
-    @tilde_inner("B2")
-    @tilde_inner("G")
-    @tilde_inner("phi")
-    @tilde_inner("S")
-    @tilde_inner("Fx")
-    @tilde_inner("Fy")
-
-    @hat_inner("B1")
-    @hat_inner("B2")
-    @hat_inner("G")
-    @hat_inner("phi")
-    @hat_inner("S")
-    @hat_inner("Fx")
-    @hat_inner("Fy")
-
-    # @bar_inner("B1")
-    # @bar_inner("B2")
-    # @bar_inner("G")
-    @bar_inner("phi")
-    # @bar_inner("S")
-
-    # @star_inner("B1")
-    # @star_inner("B2")
-    # @star_inner("G")
-    @star_inner("phi")
-    # @star_inner("S")
-
-    # @tilde_inner("Fxp")
-    # @tilde_inner("Fyp")
-
-    # @hat_inner("Fxp")
-    # @hat_inner("Fyp")
-
-    # @cross_inner("B2")
-    # @cross_inner("G")
-    # @cross_inner("S")
-    @cross_inner("phi")
-
-    phiouter = u * phi0 - u^2 * phi0 * xi + u^3 * phi0^3 * phi
-
-    x0 = u^2
-    x1 = u^4
-    x2 = B1*x1
-    x3 = exp(x2)
-    x4 = phi0^3
-    x5 = u*xi
-    x6 = x5 - 1
-    x7 = x0*x6
-    x8 = S*x1
-    x9 = x5 + 1
-    x10 = x8 + x9
-    x11 = 3*x10
-    x12 = phi0^2
-    x13 = 3*x5
-    x14 = x13 + 3
-    x15 = x12*x7 + x14 + 3*x8
-    x16 = 12*x5
-    x17 = u^3
-    x18 = Sp*x17
-    x19 = x0*x12
-    x20 = u^11
-    x21 = S^3*x20
-    x22 = 81*xi
-    x23 = S^2
-    x24 = 6*x5
-    x25 = u^7
-    x26 = 81*x25
-    x27 = x10^2
-    x28 = 4*x5
-    x29 = x0*xi^2
-    x30 = 3*x29
-    x31 = S*x17
-    x32 = x6^2
-    x33 = 2*x5
-    x34 = x33 - 1
-    x35 = u^5
-    x36 = phi0^6
-    x37 = 3*x36
-    x38 = x1*xi
-    x39 = phi0^4
-    x40 = 9*x39
-    x41 = x17*x6
-    x42 = 2*x6
-    x43 = 2*x29
-    x44 = x43 + 1
-    x45 = u*x12
-    x46 = 27*x10
-    x47 = 9*S
-    x48 = u*xi_y
-    x49 = 2*xi
-    x50 = x49*xi_y
-    x51 = x19*x34 + 9*x8 - 3
-    x52 = Fy*x51 + u*(3*Sh + x12*x50 + x47*x48)
-    x53 = G*x1
-    x54 = cosh(x53)
-    x55 = x0*x49
-    x56 = u - x55
-    x57 = Fy*x0
-    x58 = x57 + xi_y
-    x59 = 3*phi
-    x60 = u*x59
-    x61 = phih + x58*x60
-    x62 = Fy*x56 + x12*x61 - x50
-    x63 = B2*x1
-    x64 = exp(x63)
-    x65 = x62*x64
-    x66 = u*xi_x
-    x67 = x49*xi_x
-    x68 = Fx*x51 + u*(3*St + x12*x67 + x47*x66)
-    x69 = Fx*x0
-    x70 = x69 + xi_x
-    x71 = Fx*x56 + x12*(phit + x60*x70) - x67
-    x72 = exp(2*x2 + x63)
-    x73 = x71*x72
-    x74 = exp(x2 + x63)
-    x75 = sinh(x53)
-    x76 = x74*x75
-    x77 = u^6
-    x78 = 18*x77
-    x79 = 162*x34
-    x80 = phi0^8
-    x81 = x17*xi^3
-    x82 = 2*x1
-    x83 = 6*x1
-    x84 = Sd*x6
-    x85 = Sd*x82
-    x86 = -x13
-    x87 = x86 - 3
-    x88 = x29 + x6*x85 - 2*x8 + x81 + x87
-    x89 = 9*phi
-    x90 = x44 + x86
-    x91 = x9^2
-    x92 = x85 + x91
-    x93 = phip*x11
-    x94 = x10*x89
-    x95 = 2*x81
-    x96 = 4*x1*x84
-    x97 = x14 - x43 + x8 - x95 - x96
-    x98 = phi^3
-    x99 = x6^3
-    x100 = 2*UUp(phiouter,potential)
-    x101 = x6^4
-    x102 = x10^3
-    x103 = phi*x11
-    x104 = phi^2
-    x105 = UU(phiouter,potential)*x104
-    x106 = x32*x94
-    x107 = -x32
-    x108 = 4*x10
-    x109 = 54*x27
-    x110 = UU(phiouter,potential)*x6
-    x111 = x108*x110
-    x112 = u^9
-    x113 = x104*x27
-    x114 = 9*x113
-    x115 = 24*phi
-    x116 = 12*x10
-    x117 = -phi*x116*x32
-    x118 = 6*x6
-    x119 = 54*x10
-    x120 = u^10
-    x121 = x6^6
-    x122 = 4*x121
-    x123 = x102*x98
-    x124 = phi*x101
-    x125 = x113*x32
-    x126 = u^8
-    x127 = 108*x123
-    x128 = 36*x10
-    x129 = x110*x116 - 1
-    x130 = u*x58
-    x131 = 4*G
-    x132 = u*x131
-    x133 = 4*xi
-    x134 = xi_x*xi_y
-    x135 = phih*xi_x
-    x136 = phit*xi_y
-    x137 = 6*phi
-    x138 = 6*x66
-    x139 = 2*x57
-    x140 = xi_y^2
-    x141 = Fy*x35
-    x142 = Fy*x17
-    x143 = Fy^2
-    x144 = 4*B1
-    x145 = Fy*xi_y
-    x146 = x145*x77
-    x147 = Fy*x77
-    x148 = x147*x49
-    x149 = 2*x38
-    x150 = x149*xi_y
-    x151 = 4*B2
-    x152 = Fy*x149
-    x153 = 20*xi
-    x154 = x142*xi_y
-    x155 = x55*xi_y
-    x156 = 4*x126
-    x157 = B1*x143
-    x158 = B2*x156
-    x159 = 14*xi
-    x160 = x143*x35
-    x161 = Fy*x25
-    x162 = 16*xi
-    x163 = x162*xi_y
-    x164 = B2*x161
-    x165 = 8*xi
-    x166 = x112*x165
-    x167 = x165*x35
-    x168 = x140*x167
-    x169 = B2*x143
-    x170 = phih*x1
-    x171 = 8*x142
-    x172 = x17*x59
-    x173 = phip*x0
-    x174 = phih*x144
-    x175 = x35*xi_y
-    x176 = B1h*x59
-    x177 = phih*x151
-    x178 = B2h*x59
-    x179 = 36*phi
-    x180 = x1*x179
-    x181 = 2*phip
-    x182 = x115*x77
-    x183 = 12*phi
-    x184 = x0*x183
-    x185 = x115*x126
-    x186 = x145*x185
-    x187 = x120*x183
-    x188 = x183*x77
-    x189 = x140*x188
-    x190 = Fyp*x0
-    x191 = xi_x^2
-    x192 = Fx*x35
-    x193 = Fx*x17
-    x194 = 2*x69
-    x195 = Fx^2
-    x196 = Fx*x77
-    x197 = x196*xi_x
-    x198 = x196*x49
-    x199 = x149*xi_x
-    x200 = Fx*x149
-    x201 = x193*xi_x
-    x202 = Fxp*xi_x
-    x203 = B1*x195
-    x204 = x195*x35
-    x205 = Fx*x25
-    x206 = B1*x205
-    x207 = x162*xi_x
-    x208 = B2*x205
-    x209 = B1*x191
-    x210 = B2*x195
-    x211 = B2*x191
-    x212 = phit*x1
-    x213 = 8*x193
-    x214 = Fxp*x0
-    x215 = 4*phit
-    x216 = x35*xi_x
-    x217 = x215*x216
-    x218 = B1t*x59
-    x219 = B2t*x59
-    x220 = x192*x59
-    x221 = Fx*x1
-    x222 = x179*x221
-    x223 = Fx*x126
-    x224 = x115*xi_x
-    x225 = B2*x223
-    x226 = Fy*x192
-    x227 = x193*xi_y
-    x228 = x142*xi_x
-    x229 = Fyp*xi_x
-    x230 = B2*Fx*Fy
-    x231 = B2*x134
-    x232 = 6*u
-    x233 = x151*x35
-    x234 = Fy*xi_x
-
-    ABCS[1] = 0
-
-    ABCS[2] = -8*x0*x3*(phi0*x11 + x4*x7)^3/27
-
-    ABCS[3] = -4*u*x15^2*x3*x4*(x16 - 9*x18 + x19*(10*x5 - 7) + 39*x8 + 3)/27
-
-    ABCS[4] = 2*phi0*(18*x15*x17*(-x1*x54*x74*(Gh*x71 + Gt*x62 + x132*(Fx*u*(x139*(1 - x33) - x28*xi_y + x45*(phih + x130*x137) + xi_y) + Fy*u*(-x28*xi_x + x45*(phi*x138 + phit) + xi_x) + x12*x135 + x12*x136 - x133*x134 + x134*x137*x45)) + x1*x75*(x65*(Gh + x130*x131) + x73*(Gt + x132*x70)) + x54*x64*(B1*x161*x163 + B1*x168 - B1h*x141 + B1h*x148 + B1h*x150 - B2*x168 + B2h*x141 - B2h*x148 - B2h*x150 + Fyh*u - Fyh*x55 - Fyp*x142 + Fyp*x152 + Fyp*x155 + x12*(-B1*x186 - B1*x189 - B1h*x170 + B2*x186 + B2*x189 + B2h*x170 + Fyh*x172 - Fyh*x173 + phih*x171 + 6*phih*x48 - phip*xi_yy + phis + x140*x184 + x143*x182 + x145*x180 - x154*x181 - x157*x187 - x160*x181 - x161*x174 - x161*x176 + x161*x177 + x161*x178 + x169*x187 - x174*x175 - x175*x176 + x175*x177 + x175*x178 - x190*x61 + x60*xi_yy) + x139*xi_y - x140*x24 - 2*x140 + x143*x158 + x143*x83 - x144*x146 + x146*x151 - x153*x154 - x156*x157 + x157*x166 - x159*x160 - x163*x164 - x166*x169 - x49*xi_yy) + x54*x72*(B1t*x192 - B1t*x198 - B1t*x199 + B2t*x192 - B2t*x198 - B2t*x199 - Fxp*x193 + Fxp*x200 + Fxt*u - Fxt*x55 + x12*(B1*x217 + B1*x223*x224 + B1t*x212 + B2*x217 + B2t*x212 - Fxp*x220 + Fxt*x0*(-phip + x60) + phib - phip*xi_xx + phit*x138 + phit*x213 - phit*x214 - x172*x202 - x181*x201 - x181*x204 + x182*x195 + x184*x191 + x187*x203 + x187*x210 + x188*x209 + x188*x211 + x205*x218 + x205*x219 + x206*x215 + x208*x215 + x216*x218 + x216*x219 + x222*xi_x + x224*x225 + x60*xi_xx) + x144*x197 + x151*x197 - x153*x201 + x156*x203 + x158*x195 - x159*x204 - x166*x203 - x166*x210 - x167*x209 - x167*x211 - x191*x24 - 2*x191 + x194*xi_x + x195*x83 + x202*x55 - x206*x207 - x207*x208 - x49*xi_xx) - x76*(B2h*x192 - B2h*x198 - B2h*x199 + B2t*x141 - B2t*x148 - B2t*x150 + Fxh*u - Fxh*x55 - Fxp*x142 + Fxp*x152 + Fxp*x155 + 12*Fy*x221 + 8*Fy*x225 - Fyp*x193 + Fyp*x200 + Fyt*u - Fyt*x55 - x112*x162*x230 + x12*(B2*x185*x234 + B2h*x212 + B2t*x170 + Fxh*x172 - Fxh*x173 + 48*Fy*phi*x196 - Fyp*x220 + Fyt*x172 - Fyt*x173 + phi*x232*xi_xy + 2*phic + 4*phih*x208 + phih*x213 - 4*phip*x226 + phit*x171 - phit*x190 + x0*x115*x134 + x115*x120*x230 + x115*x225*xi_y + x135*x232 + x135*x233 + x136*x232 + x136*x233 + x161*x219 + x164*x215 - x172*x229 + x175*x219 + x178*x205 + x178*x216 + x180*x234 - x181*x227 - x181*x228 - x181*xi_xy + x182*x231 - x214*x61 + x222*xi_y) - x133*xi_xy - x134*x16 - 4*x134 + x139*xi_x + x147*x151*xi_x + x151*x196*xi_y - x153*x227 - x153*x228 - x162*x231*x35 - x163*x208 - x164*x207 + x194*xi_y - 28*x226*xi + x229*x55)) + x3*(-81*Sp*x0*x27 + 243*x21 - x22*(x5 + 2) + x23*x26*(x24 + 5) + 81*x31*(x28 + x30 + 1) + x32*x34*x35*x37 + x40*x41*(Sp*(x17 - x38) + 4*x29 + x6 + x8*(7*x5 - 5)) + x45*x46*(-x18*x42 + x44 - x5 + x8*(8*x5 - 7))) - x3*(-Sd*x17*x27*x79 + x0*x40*(u*(-x88*x90 - x94*x97) + x93*x97) + x1*x37*x6*(phip*(-x30 + 9*x5 + 6*x8 - 3*x81 - x83*x84 + 9) + u*(x88*x89 + x90)) - x12*x46*(u*x34*(x43 - x8 + x87 + x95 + x96) - u*x92*x94 + x92*x93) - x22*(8*x29 + x33 + 7*x81 + x82*xi^4 - 2) - x26*x34*(S*x5 + S)^2 - x31*x79*x9^3 + 3*x32*x77*x80*(phip - x60)) - x3*(8*UU(phiouter,potential)*phi0^14*u^13*x98*x99 + UUp(phiouter,potential)*phi0^13*u^12*x104*x118*(2*x101 + x114 + x117) - UUp(phiouter,potential)*phi0^9*x126*x42*(-x121 + x124*x128 - 162*x125 + x127) + UUp(phiouter,potential)*phi0^7*x10*x32*x78*(x101 + 18*x113 + x117) - UUp(phiouter,potential)*phi0^5*x1*x109*x99*(phi*x108 + x107) + 54*UUp(phiouter,potential)*x0*x101*x102*x4 + phi^4*phi0^17*u^16*x100*x99 + phi*phi0^11*x100*x120*(x119*x124 - x122 + 27*x123 - 108*x125) + phi0^15*u^14*x100*x98*(-4*x101 + x106) + 24*phi0^12*x105*x20*(-x101 + x103*x32) + phi0^10*x110*x112*x115*(x101 - x106 + x114) - x109*x45*(x103 + x32*(x111 - 3)) - x118*x35*x36*(108*x102*x105 - x129*x6*x94 + x129*x99) + x119*x39*x41*(x103 + x107)*(x111 - 1) + 162*x21*x6 + 486*x23*x25*(x29 - 1) + 2*x25*x80*(-UU(phiouter,potential)*x122 - 324*UU(phiouter,potential)*x125 + UU(phiouter,potential)*x127 + x59*x99*(x110*x128 - 1)) + 486*x31*x6*x91 + 162*xi*(x43 + x81 - 2)) + x78*(x52*x54*x65 + x54*x68*x73 - x76*(x52*x71 + x62*x68)))/27
-
-
-    nothing
-end
 
 
 function A_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
     (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1   , B2   , G   , phi   , S    , Fx    , Fy    , Sd, B1d, B2d, Gd, phid,
-        B1p  , B2p  , Gp  , phip  , Sp   , Fxp   , Fyp   ,
-        B1pp , B2pp , Gpp , phipp , Spp  , Fxpp  , Fypp  ,
-        B1_x , B2_x , G_x , phi_x , S_x  , Fx_x  , Fy_x  ,
-        B1_y , B2_y , G_y , phi_y , S_y  , Fx_y  , Fy_y  ,
-        B1p_x, B2p_x, Gp_x, phip_x, Sp_x , Fxp_x , Fyp_x ,
-        B1p_y, B2p_y, Gp_y, phip_y, Sp_y , Fxp_y , Fyp_y ,
-        B1_xx, B2_xx, G_xx, phi_xx, S_xx ,
-        B1_yy, B2_yy, G_yy, phi_yy, S_yy ,
-               B2_xy, G_xy, phi_xy, S_xy
+        potential, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1   ,  G   ,  S    , Fx    , Fy    , Sd, B1d, Gd,
+        B1p  ,  Gp  ,  Sp   , Fxp   , Fyp   ,
+        B1pp ,  Gpp ,  Spp  , Fxpp  , Fypp  ,
+        B1_x ,  G_x ,  S_x  , Fx_x  , Fy_x  ,
+        B1_y ,  G_y ,  S_y  , Fx_y  , Fy_y  ,
+        B1p_x,  Gp_x,  Sp_x , Fxp_x , Fyp_x ,
+        B1p_y,  Gp_y,  Sp_y , Fxp_y , Fyp_y ,
+        B1_xx,  G_xx,  S_xx ,
+        B1_yy,  G_yy,  S_yy ,
+                G_xy,  S_xy
     ) = vars
 
     @tilde_inner("B1")
-    @tilde_inner("B2")
     @tilde_inner("G")
-    @tilde_inner("phi")
     @tilde_inner("S")
     @tilde_inner("Fx")
     @tilde_inner("Fy")
 
     @hat_inner("B1")
-    @hat_inner("B2")
     @hat_inner("G")
-    @hat_inner("phi")
     @hat_inner("S")
     @hat_inner("Fx")
     @hat_inner("Fy")
 
     @bar_inner("B1")
-    @bar_inner("B2")
     @bar_inner("G")
-    @bar_inner("phi")
     @bar_inner("S")
 
     @star_inner("B1")
-    @star_inner("B2")
     @star_inner("G")
-    @star_inner("phi")
     @star_inner("S")
 
     @tilde_inner("Fxp")
@@ -1820,12 +1096,9 @@ function A_eq_coeff!(ABCS::Vector, vars::Tuple, ::Inner)
     @hat_inner("Fxp")
     @hat_inner("Fyp")
 
-    @cross_inner("B2")
     @cross_inner("G")
     @cross_inner("S")
-    @cross_inner("phi")
 
-    phiouter = u * phi0 - u^2 * phi0 * xi + u^3 * phi0^3 * phi
 
     x0 = u^4
     x1 = B1*x0

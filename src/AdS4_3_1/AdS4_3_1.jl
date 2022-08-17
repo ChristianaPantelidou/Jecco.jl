@@ -69,8 +69,8 @@ function __init__()
 end
 
 # export SpecCartGrid3D
-# export Potential, ZeroPotential, Phi8Potential
-# export BlackBrane, BlackBranePert, BlackBrane_xi1, PhiGaussian_u
+# export Potential, ZeroPotential
+# export BlackBrane, BlackBranePert, BlackBrane_xi1
 # export Advect_xi, ConstantAH, AHF
 # export AffineNull, EvolTest0
 # export NoDiag, DiagAH
@@ -78,7 +78,7 @@ end
 # export System, SystemPartition
 # export BulkEvolvedPartition, BulkConstrainedPartition, BulkDerivPartition
 # export Integration, InOut, run_model
-# export get_energy, get_Jx, get_Jy, get_px, get_py, get_pz, get_pxy, get_Ophi
+# export get_energy, get_Jx, get_Jy, get_px, get_py, get_pz, get_pxy
 # export BoundaryTimeSeries, XiTimeSeries, BulkTimeSeries, VEVTimeSeries, ConstrainedTimeSeries
 # export convert_to_mathematica
 

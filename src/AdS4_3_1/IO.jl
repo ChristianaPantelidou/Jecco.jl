@@ -1,6 +1,6 @@
 
 function output_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.TimeInfo,
-                       io::InOut, potential::Potential, phi0)
+                       io::InOut, potential::Potential)
     Nsys = length(atlas)
 
     # output structures
@@ -14,7 +14,6 @@ function output_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.TimeInfo
 
     # NamedTuple with potential parameters
     params = parameters(potential)
-    params = merge((phi0=phi0,), params)
 
     #=
     for analysis, it's useful to have the boundary behaviour of the bulk fields,
@@ -23,30 +22,21 @@ function output_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.TimeInfo
     shape as in the remaining boundary fields -- 3D arrays of size (1,Nx,Ny) --
     we must reshape them first.
     =#
-    b14  = reshape(bulkevols[1].B1[1,:,:],  size(chart2D))
-    b24  = reshape(bulkevols[1].B2[1,:,:],  size(chart2D))
-    g4   = reshape(bulkevols[1].G[1,:,:],   size(chart2D))
-    phi3 = reshape(bulkevols[1].phi[1,:,:], size(chart2D))
-
-    # phi2 = phi0^3 phi3 - phi0 xi^2
-    phi2 = phi0*phi0*phi0 .* phi3 .- phi0 .* gauge.xi .* gauge.xi
+    b13  = reshape(bulkevols[1].B1[1,:,:],  size(chart2D))
+    g3   = reshape(bulkevols[1].G[1,:,:],   size(chart2D))
 
     # output fields
     boundary_fields = (
-        Jecco.Field("a4",   boundary.a4,  chart2D),
-        Jecco.Field("fx2",  boundary.fx2, chart2D),
-        Jecco.Field("fy2",  boundary.fy2, chart2D),
-        Jecco.Field("b14",  b14,          chart2D),
-        Jecco.Field("b24",  b24,          chart2D),
-        Jecco.Field("g4",   g4,           chart2D),
-        Jecco.Field("phi2", phi2,         chart2D),
+        Jecco.Field("a3",   boundary.a3,  chart2D),
+        Jecco.Field("fx1",  boundary.fx1, chart2D),
+        Jecco.Field("fy1",  boundary.fy1, chart2D),
+        Jecco.Field("b13",  b13,          chart2D),
+        Jecco.Field("g3",   g3,           chart2D),
     )
     gauge_fields = Jecco.Field("xi", gauge.xi, chart2D)
     bulkevols_fields = ntuple(i -> (
         Jecco.Field("B1 c=$i",  bulkevols[i].B1,  atlas[i]),
-        Jecco.Field("B2 c=$i",  bulkevols[i].B2,  atlas[i]),
-        Jecco.Field("G c=$i",   bulkevols[i].G,   atlas[i]),
-        Jecco.Field("phi c=$i", bulkevols[i].phi, atlas[i])
+        Jecco.Field("G c=$i",   bulkevols[i].G,   atlas[i])
     ), Nsys)
 
     last_output_boundary_t = -io.out_boundary_every_t
@@ -92,18 +82,12 @@ function output_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.TimeInfo
         end
 
         if do_output_boundary
-            boundary_fields[1].data = boundary.a4
-            boundary_fields[2].data = boundary.fx2
-            boundary_fields[3].data = boundary.fy2
+            boundary_fields[1].data = boundary.a3
+            boundary_fields[2].data = boundary.fx1
+            boundary_fields[3].data = boundary.fy1
             @views copyto!(boundary_fields[4].data, bulkevols[1].B1[1,:,:])
-            @views copyto!(boundary_fields[5].data, bulkevols[1].B2[1,:,:])
             @views copyto!(boundary_fields[6].data, bulkevols[1].G[1,:,:])
 
-            @views copyto!(phi2, bulkevols[1].phi[1,:,:])
-            # phi2 = phi0^3 phi[1,:,:] - phi0 xi^2
-            phi2 .= phi0*phi0*phi0 .* phi2 .- phi0 .* gauge.xi .* gauge.xi
-
-            boundary_fields[7].data = phi2
 
             # write data
             out_bdry(boundary_fields, params=params)
@@ -118,9 +102,7 @@ function output_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.TimeInfo
         if do_output_bulk
             @inbounds for i in 1:Nsys
                 bulkevols_fields[i][1].data = bulkevols[i].B1
-                bulkevols_fields[i][2].data = bulkevols[i].B2
-                bulkevols_fields[i][3].data = bulkevols[i].G
-                bulkevols_fields[i][4].data = bulkevols[i].phi
+                bulkevols_fields[I][2].data = bulkevols[i].G
             end
             # write data
             out_bulk.(bulkevols_fields, params=params)
@@ -133,12 +115,11 @@ end
 
 function output_writer(bulkconstrains::BulkPartition{Nsys,BulkConstrained{T}}, atlas,
                        tinfo::Jecco.TimeInfo, io::InOut, potential::Potential,
-                       phi0) where {Nsys,T}
+                       ) where {Nsys,T}
     @assert Nsys == length(atlas)
 
     # NamedTuple with potential parameters
     params = parameters(potential)
-    params = merge((phi0=phi0,), params)
 
     # output structure
     out  = Jecco.Output(io.out_dir, "constrained_", tinfo)
@@ -149,9 +130,7 @@ function output_writer(bulkconstrains::BulkPartition{Nsys,BulkConstrained{T}}, a
         Jecco.Field("Fx c=$i",   bulkconstrains[i].Fx,   atlas[i]),
         Jecco.Field("Fy c=$i",   bulkconstrains[i].Fy,   atlas[i]),
         Jecco.Field("B1d c=$i",  bulkconstrains[i].B1d,  atlas[i]),
-        Jecco.Field("B2d c=$i",  bulkconstrains[i].B2d,  atlas[i]),
         Jecco.Field("Gd c=$i",   bulkconstrains[i].Gd,   atlas[i]),
-        Jecco.Field("phid c=$i", bulkconstrains[i].phid, atlas[i]),
         Jecco.Field("Sd c=$i",   bulkconstrains[i].Sd,   atlas[i]),
         Jecco.Field("A c=$i",    bulkconstrains[i].A,    atlas[i])
     ), Nsys)
@@ -180,11 +159,9 @@ function output_writer(bulkconstrains::BulkPartition{Nsys,BulkConstrained{T}}, a
                 fields[i][2].data = bulkconstrains[i].Fx
                 fields[i][3].data = bulkconstrains[i].Fy
                 fields[i][4].data = bulkconstrains[i].B1d
-                fields[i][5].data = bulkconstrains[i].B2d
-                fields[i][6].data = bulkconstrains[i].Gd
-                fields[i][7].data = bulkconstrains[i].phid
-                fields[i][8].data = bulkconstrains[i].Sd
-                fields[i][9].data = bulkconstrains[i].A
+                fields[I][5].data = bulkconstrains[i].Gd
+                fields[I][6].data = bulkconstrains[i].Sd
+                fields[I][7].data = bulkconstrains[i].A
             end
             # write data
             out.(fields, params=params)
@@ -208,16 +185,14 @@ function checkpoint_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.Time
 
     # output fields
     boundary_fields = (
-        Jecco.Field("a4",   boundary.a4,  chart2D),
-        Jecco.Field("fx2",  boundary.fx2, chart2D),
-        Jecco.Field("fy2",  boundary.fy2, chart2D),
+        Jecco.Field("a3",   boundary.a3,  chart2D),
+        Jecco.Field("fx1",  boundary.fx1, chart2D),
+        Jecco.Field("fy1",  boundary.fy1, chart2D),
     )
     gauge_fields = Jecco.Field("xi", gauge.xi, chart2D)
     bulkevols_fields = ntuple(i -> (
         Jecco.Field("B1 c=$i",  bulkevols[i].B1,  atlas[i]),
-        Jecco.Field("B2 c=$i",  bulkevols[i].B2,  atlas[i]),
         Jecco.Field("G c=$i",   bulkevols[i].G,   atlas[i]),
-        Jecco.Field("phi c=$i", bulkevols[i].phi, atlas[i])
     ), Nsys)
 
     function (u::EvolVars)
@@ -225,17 +200,15 @@ function checkpoint_writer(u::EvolVars, chart2D::Chart, atlas, tinfo::Jecco.Time
         gauge     = getgauge(u)
         bulkevols = getbulkevolvedpartition(u)
 
-        boundary_fields[1].data = boundary.a4
-        boundary_fields[2].data = boundary.fx2
-        boundary_fields[3].data = boundary.fy2
+        boundary_fields[1].data = boundary.a3
+        boundary_fields[2].data = boundary.fx1
+        boundary_fields[3].data = boundary.fy1
 
         gauge_fields.data = gauge.xi
 
         @inbounds for i in 1:Nsys
             bulkevols_fields[i][1].data = bulkevols[i].B1
-            bulkevols_fields[i][2].data = bulkevols[i].B2
-            bulkevols_fields[i][3].data = bulkevols[i].G
-            bulkevols_fields[i][4].data = bulkevols[i].phi
+            bulkevols_fields[I][2].data = bulkevols[i].G
         end
 
         # write data
@@ -256,17 +229,10 @@ function restore!(bulkevols::BulkPartition{Nsys}, ts::OpenPMDTimeSeries,
         @assert size(B1) == size(bulkevols[i].B1)
         copyto!(bulkevols[i].B1, B1)
 
-        B2, chart = get_field(ts, it=it, field="B2 c=$i")
-        @assert size(B2) == size(bulkevols[i].B2)
-        copyto!(bulkevols[i].B2, B2)
-
         G, chart = get_field(ts, it=it, field="G c=$i")
         @assert size(G) == size(bulkevols[i].G)
         copyto!(bulkevols[i].G, G)
 
-        phi, chart = get_field(ts, it=it, field="phi c=$i")
-        @assert size(phi) == size(bulkevols[i].phi)
-        copyto!(bulkevols[i].phi, phi)
     end
 
     nothing
@@ -275,17 +241,17 @@ end
 # restore all boundary fields
 function restore!(boundary::Boundary, ts::OpenPMDTimeSeries, it::Int)
 
-    a4, chart = get_field(ts, it=it, field="a4")
-    @assert size(a4) == size(boundary.a4)
-    copyto!(boundary.a4, a4)
+    a3, chart = get_field(ts, it=it, field="a3")
+    @assert size(a3) == size(boundary.a3)
+    copyto!(boundary.a3, a3)
 
-    fx2, chart = get_field(ts, it=it, field="fx2")
-    @assert size(fx2) == size(boundary.fx2)
-    copyto!(boundary.fx2, fx2)
+    fx1, chart = get_field(ts, it=it, field="fx1")
+    @assert size(fx1) == size(boundary.fx1)
+    copyto!(boundary.fx1, fx1)
 
-    fy2, chart = get_field(ts, it=it, field="fy2")
-    @assert size(fy2) == size(boundary.fy2)
-    copyto!(boundary.fy2, fy2)
+    fy1, chart = get_field(ts, it=it, field="fy1")
+    @assert size(fy1) == size(boundary.fy1)
+    copyto!(boundary.fy1, fy1)
 
     nothing
 end

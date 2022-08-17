@@ -4,12 +4,10 @@
 We use these macros as shorthand notation. For instance
 
   @tilde_outer("B1")
-  @hat_outer("B2")
 
 should expand to
 
-  B1t = B1_x - (Fx + xi_x) * B1p
-  B2h = B2_y - (Fy + xi_y) * B2p
+  B1t = B1_x -  (Fx + xi_x) * B1p
 
 etc.
 
@@ -24,21 +22,21 @@ macro hat_outer(fname::String)
     fh    = Symbol(fname, "h")
     f_y   = Symbol(fname, "_y")
     fp    = Symbol(fname, "p")
-    return esc( :($fh = $f_y - (Fy + xi_y) * $fp) )
+    return esc( :($fh = $f_y - (Fy + xi_y)  * $fp) )
 end
 macro bar_outer(fname::String)
     fb    = Symbol(fname, "b")
     f_xx  = Symbol(fname, "_xx")
     fpp   = Symbol(fname, "pp")
     fp_x  = Symbol(fname, "p_x")
-    return esc( :($fb = $f_xx + (Fx + xi_x) * ( -2*($fp_x) + (Fx + xi_x) * ($fpp) )) )
+    return esc( :($fb = $f_xx + (Fx + xi_x)  * ( -2*($fp_x) + (Fx + xi_x) * ($fpp) )) )
 end
 macro star_outer(fname::String)
     fs    = Symbol(fname, "s")
     f_yy  = Symbol(fname, "_yy")
     fpp   = Symbol(fname, "pp")
     fp_y  = Symbol(fname, "p_y")
-    return esc( :($fs = $f_yy + (Fy + xi_y) * ( -2*($fp_y) + (Fy + xi_y) * ($fpp) )) )
+    return esc( :($fs = $f_yy + (Fy + xi_y)  * ( -2*($fp_y) + (Fy + xi_y) * ($fpp) )) )
 end
 macro cross_outer(fname::String)
     fc    = Symbol(fname, "c")
@@ -47,7 +45,7 @@ macro cross_outer(fname::String)
     fp_x  = Symbol(fname, "p_x")
     fp_y  = Symbol(fname, "p_y")
     return esc( :($fc = $f_xy  - (Fx + xi_x) * ($fp_y) -
-                  (Fy + xi_y) * ( $fp_x - (Fx + xi_x) * ($fpp) ) ) )
+                 (Fy + xi_y)  * ( $fp_x - (Fx + xi_x)  * ($fpp) ) ) )
 end
 
 
@@ -55,12 +53,17 @@ end
 # (A d_uu + B d_u + C Id) f = -S
 
 function S_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
-    (phi0, u, xi, B1, B1p, B2, B2p, G, Gp, phi, phip) = vars
+    (u, xi, B1, B1p, G, Gp) = vars
+	
+	ABCS[1] = 4*u**2
 
-    ABCS[1] = *(6, u ^ 4)
-    ABCS[2] = *(12, u ^ 3)
-    ABCS[3] = Gp ^ 2 + *(3, B2p ^ 2) + *(4, phip ^ 2) + *(B1p ^ 2, cosh(G) ^ 2)
-    ABCS[4] = 0
+	ABCS[2] = -16*u**3
+
+	ABCS[3] = u**4*(9*B**2*u**6 - 6*B*Bp*u**5 + Bp**2*u**4 + 18*G**2*u**6 - 12*G*Gp*u**5 + 2*Gp**2*u**4 + u**4*(-3*B*u + Bp)**2*sym.cosh(2*G*u**3) + 48)/2
+
+	ABCS[4] = u**5*(u*xi + 1)*(9*B**2*u**2 - 6*B*Bp*u + Bp**2 + 18*G**2*u**2 - 12*G*Gp*u + 2*Gp**2 + (-3*B*u + Bp)**2*sym.cosh(2*G*u**3))/2
+
+
 
     nothing
 end
@@ -72,14 +75,14 @@ end
 
 function Fxy_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::Tuple, ::Outer)
     (
-        phi0, u, xi, xi_x, xi_y,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,
-        B1pp   ,    B2pp   ,    Gpp    ,                Spp    ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,                Sp_x   ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,                Sp_y
+        u, xi, xi_x, xi_y,
+        B1     ,        G      ,        S      ,
+        B1p    ,        Gp     ,        Sp     ,
+        B1pp   ,        Gpp    ,        Spp    ,
+        B1_x   ,        G_x    ,        S_x    ,
+        B1_y   ,        G_y    ,        S_y    ,
+        B1p_x  ,        Gp_x   ,        Sp_x   ,
+        B1p_y  ,        Gp_y   ,        Sp_y
     ) = vars
 
     expB1   = exp(B1)
@@ -118,45 +121,37 @@ end
 
 function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
     (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
+        potential,  u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1     ,        G      ,        S      ,    Fx     ,    Fy     ,
+        B1p    ,        Gp     ,        Sp     ,    Fxp    ,    Fyp    ,
+        B1pp   ,        Gpp    ,        Spp    ,    Fxpp   ,    Fypp   ,
+        B1_x   ,        G_x    ,        S_x    ,    Fx_x   ,    Fy_x   ,
+        B1_y   ,        G_y    ,        S_y    ,    Fx_y   ,    Fy_y   ,
+        B1p_x  ,        Gp_x   ,        Sp_x   ,    Fxp_x  ,    Fyp_x  ,
+        B1p_y  ,        Gp_y   ,        Sp_y   ,    Fxp_y  ,    Fyp_y  ,
+        B1_xx  ,        G_xx   ,        S_xx   ,
+        B1_yy  ,        G_yy   ,        S_yy   ,
+                        G_xy   ,        S_xy
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
-    @tilde_outer("phi")
     @tilde_outer("S")
     @tilde_outer("Fx")
     @tilde_outer("Fy")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
-    @hat_outer("phi")
     @hat_outer("S")
     @hat_outer("Fx")
     @hat_outer("Fy")
 
     @bar_outer("B1")
-    @bar_outer("B2")
     @bar_outer("G")
-    @bar_outer("phi")
     @bar_outer("S")
 
     @star_outer("B1")
-    @star_outer("B2")
     @star_outer("G")
-    @star_outer("phi")
     @star_outer("S")
 
     @tilde_outer("Fxp")
@@ -165,7 +160,6 @@ function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
     @hat_outer("Fxp")
     @hat_outer("Fyp")
 
-    @cross_outer("B2")
     @cross_outer("G")
     @cross_outer("S")
 
@@ -194,81 +188,6 @@ function Sd_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
 end
 
 
-function B2d_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
-    (
-        phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
-    ) = vars
-
-    @tilde_outer("B1")
-    @tilde_outer("B2")
-    @tilde_outer("G")
-    @tilde_outer("phi")
-    @tilde_outer("S")
-    @tilde_outer("Fx")
-    @tilde_outer("Fy")
-
-    @hat_outer("B1")
-    @hat_outer("B2")
-    @hat_outer("G")
-    @hat_outer("phi")
-    @hat_outer("S")
-    @hat_outer("Fx")
-    @hat_outer("Fy")
-
-    @bar_outer("B1")
-    @bar_outer("B2")
-    @bar_outer("G")
-    @bar_outer("phi")
-    @bar_outer("S")
-
-    @star_outer("B1")
-    @star_outer("B2")
-    @star_outer("G")
-    @star_outer("phi")
-    @star_outer("S")
-
-    @tilde_outer("Fxp")
-    @tilde_outer("Fyp")
-
-    @hat_outer("Fxp")
-    @hat_outer("Fyp")
-
-    @cross_outer("B2")
-    @cross_outer("G")
-    @cross_outer("S")
-
-
-    expB1   = exp(B1)
-    expB2   = exp(B2)
-    sinh2G  = sinh(*(2, G))
-    cosh2G  = cosh(*(2, G))
-    coshGsq = cosh(G)^2
-    coshG   = cosh(G)
-    sinhG   = sinh(G)
-
-
-    ABCS[1] = 0
-
-    ABCS[2] = *(-12, S ^ 4, u ^ 2, expB1)
-
-    ABCS[3] = *(18, Sp, S ^ 3, expB1)
-
-    ABCS[4] = *(*(S, *(*(2, Gh, St) + *(2, Gt, Sh), coshG) + *(-1, *(-4, Sc) + *(-4, Fxp, Sh) + *(-4, Fyp, St) + *(2, Fxh, Sp) + *(2, Fyt, Sp) + *(4, B2h, St) + *(4, B2t, Sh) + *(4, Sp, xi_xy), sinhG)) + *(S ^ 2, *(*(4, Gc) + *(-2, Gp, Fxh + Fyt + *(2, xi_xy)) + *(-2, Gt, B1h + Fyp + *(2, B2h)) + *(2, Gh, B1t + *(-1, Fxp) + *(-2, B2t)), coshG) + *(*(-8, B2c) + *(-2, Fxph) + *(-2, Fypt) + *(2, Fyp, Fxp + *(2, B2t)) + *(4, B2h, Fxp + *(-1, B2t)) + *(4, B2p, Fxh + Fyt + *(2, xi_xy)) + *(4, Gh, Gt) + *(8, phih, phit), sinhG)) + *(-8, Sh, St, sinhG), exp(B1 + B2)) + *(*(S, *(*(-2, Ss) + *(2, Sh, B1h + *(-2, Fyp) + *(2, B2h)) + *(2, Sp, Fyh + xi_yy), coshG) + *(-2, Gh, Sh, sinhG)) + *(S ^ 2, *(*(-2, Gs) + *(2, Gh, Fyp + *(2, B1h) + *(2, B2h)) + *(2, Gp, Fyh + xi_yy), sinhG) + *(*(-1, Fyp ^ 2) + *(-4, phih ^ 2) + *(-2, B1h ^ 2) + *(-2, Gh ^ 2) + *(2, B1s) + *(2, Fyph) + *(2, B2h ^ 2) + *(4, B2s) + *(-1, Fyp, *(2, B1h) + *(4, B2h)) + *(-1, Fyh + xi_yy, *(2, B1p) + *(4, B2p)) + *(-4, B1h, B2h), coshG)) + *(4, Sh ^ 2, coshG), expB2) + *(*(S, *(*(-2, Sb) + *(-4, Fxp, St) + *(-2, B1t, St) + *(2, Fxt, Sp) + *(2, Sp, xi_xx) + *(4, B2t, St), coshG) + *(-2, Gt, St, sinhG)) + *(S ^ 2, *(*(-2, Gb) + *(2, Gp, Fxt + xi_xx) + *(2, Gt, Fxp + *(-2, B1t) + *(2, B2t)), sinhG) + *(*(-1, Fxp ^ 2) + *(-4, phit ^ 2) + *(-2, B1b) + *(-2, B1t ^ 2) + *(-2, Gt ^ 2) + *(2, Fxpt) + *(2, B2t ^ 2) + *(4, B2b) + *(Fxp, *(-4, B2t) + *(2, B1t)) + *(2, B1p + *(-2, B2p), Fxt + xi_xx) + *(4, B1t, B2t), coshG)) + *(4, St ^ 2, coshG), exp(B2 + *(2, B1))) + *(18, B2p, Sd, S ^ 3, expB1)
-
-    nothing
-end
-
-
 # this is another coupled equation, for B1d and Gd. the notation used is
 #
 # ( A11 d_uu B1d + A12 d_uu Gd + B11 d_u B1d + B12 d_u Gd + C11 B1d + C12 Gd ) = -S1
@@ -276,45 +195,37 @@ end
 
 function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::Tuple, ::Outer)
     (
-        phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,                S_xy
+       u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1     ,      G      ,        S      ,    Fx     ,    Fy     ,  Sd,
+        B1p    ,      Gp     ,        Sp     ,    Fxp    ,    Fyp    ,
+        B1pp   ,      Gpp    ,        Spp    ,    Fxpp   ,    Fypp   ,
+        B1_x   ,      G_x    ,        S_x    ,    Fx_x   ,    Fy_x   ,
+        B1_y   ,      G_y    ,        S_y    ,    Fx_y   ,    Fy_y   ,
+        B1p_x  ,      Gp_x   ,        Sp_x   ,    Fxp_x  ,    Fyp_x  ,
+        B1p_y  ,      Gp_y   ,        Sp_y   ,    Fxp_y  ,    Fyp_y  ,
+        B1_xx  ,      G_xx   ,        S_xx   ,
+        B1_yy  ,      G_yy   ,        S_yy   ,
+                      G_xy   ,        S_xy
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
-    @tilde_outer("phi")
     @tilde_outer("S")
     @tilde_outer("Fx")
     @tilde_outer("Fy")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
-    @hat_outer("phi")
     @hat_outer("S")
     @hat_outer("Fx")
     @hat_outer("Fy")
 
     @bar_outer("B1")
-    @bar_outer("B2")
     @bar_outer("G")
-    @bar_outer("phi")
     @bar_outer("S")
 
     @star_outer("B1")
-    @star_outer("B2")
     @star_outer("G")
-    @star_outer("phi")
     @star_outer("S")
 
     @tilde_outer("Fxp")
@@ -323,7 +234,6 @@ function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::T
     @hat_outer("Fxp")
     @hat_outer("Fyp")
 
-    @cross_outer("B2")
     @cross_outer("G")
     @cross_outer("S")
 
@@ -371,128 +281,39 @@ function B1dGd_eq_coeff!(AA::Matrix, BB::Matrix, CC::Matrix, SS::Vector, vars::T
 end
 
 
-function phid_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
-    (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1     ,    B2     ,    G      ,    phi    ,    S      ,    Fx     ,    Fy     ,  Sd,
-        B1p    ,    B2p    ,    Gp     ,    phip   ,    Sp     ,    Fxp    ,    Fyp    ,
-        B1pp   ,    B2pp   ,    Gpp    ,    phipp  ,    Spp    ,    Fxpp   ,    Fypp   ,
-        B1_x   ,    B2_x   ,    G_x    ,    phi_x  ,    S_x    ,    Fx_x   ,    Fy_x   ,
-        B1_y   ,    B2_y   ,    G_y    ,    phi_y  ,    S_y    ,    Fx_y   ,    Fy_y   ,
-        B1p_x  ,    B2p_x  ,    Gp_x   ,    phip_x ,    Sp_x   ,    Fxp_x  ,    Fyp_x  ,
-        B1p_y  ,    B2p_y  ,    Gp_y   ,    phip_y ,    Sp_y   ,    Fxp_y  ,    Fyp_y  ,
-        B1_xx  ,    B2_xx  ,    G_xx   ,    phi_xx ,    S_xx   ,
-        B1_yy  ,    B2_yy  ,    G_yy   ,    phi_yy ,    S_yy   ,
-                    B2_xy  ,    G_xy   ,    phi_xy,     S_xy
-    ) = vars
-
-    @tilde_outer("B1")
-    @tilde_outer("B2")
-    @tilde_outer("G")
-    @tilde_outer("phi")
-    @tilde_outer("S")
-    @tilde_outer("Fx")
-    @tilde_outer("Fy")
-
-    @hat_outer("B1")
-    @hat_outer("B2")
-    @hat_outer("G")
-    @hat_outer("phi")
-    @hat_outer("S")
-    @hat_outer("Fx")
-    @hat_outer("Fy")
-
-    # @bar_outer("B1")
-    # @bar_outer("B2")
-    # @bar_outer("G")
-    @bar_outer("phi")
-    # @bar_outer("S")
-
-    # @star_outer("B1")
-    # @star_outer("B2")
-    # @star_outer("G")
-    @star_outer("phi")
-    # @star_outer("S")
-
-    # @tilde_outer("Fxp")
-    # @tilde_outer("Fyp")
-
-    # @hat_outer("Fxp")
-    # @hat_outer("Fyp")
-
-    # @cross_outer("B2")
-    # @cross_outer("G")
-    # @cross_outer("S")
-    @cross_outer("phi")
-
-   # VV = -3 -3/2 * phi^2 + phi^4*UU(phi,potential)
-
-    VVp = -3 * phi + phi^4 * UUp(phi,potential) + 4*phi^3 * UU(phi,potential)
-
-
-
-    expB1   = exp(B1)
-    expB2   = exp(B2)
-    sinh2G  = sinh(*(2, G))
-    cosh2G  = cosh(*(2, G))
-    coshGsq = cosh(G)^2
-    coshG   = cosh(G)
-    sinhG   = sinh(G)
-
-
-    ABCS[1] = 0
-
-    ABCS[2] = *(-8, S ^ 3, u ^ 2, expB1)
-
-    ABCS[3] = *(12, Sp, S ^ 2, expB1)
-
-    ABCS[4] = *(*(*(4, phih, Sh + *(-1, S, B1h + Fyp + *(-1, B2h))) + *(4, S, phis + *(-1, phip, Fyh + xi_yy)), coshG) + *(4, Gh, phih, S, sinhG), expB2) + *(*(4, S, *(phib + *(phit, B1t + B2t + *(-1, Fxp)) + *(-1, phip, Fxt + xi_xx), coshG) + *(Gt, phit, sinhG)) + *(4, phit, St, coshG), exp(B2 + *(2, B1))) + *(*(-1, *(4, phih, St) + *(4, phit, Sh), sinhG) + *(S, *(-4, Gh, phit) + *(-4, Gt, phih), coshG) + *(S, *(-8, phic) + *(4, phih, Fxp + *(-1, B2t)) + *(4, phip, Fxh + Fyt + *(2, xi_xy)) + *(4, phit, Fyp + *(-1, B2h)), sinhG), exp(B1 + B2)) + *(-4, S ^ 2, *(S, VVp) + *(-3, phip, Sd), expB1)
-
-    nothing
-end
-
-
 function A_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
     (
-        potential, phi0, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1   , B2   , G   , phi   , S    , Fx    , Fy    , Sd, B1d, B2d, Gd, phid,
-        B1p  , B2p  , Gp  , phip  , Sp   , Fxp   , Fyp   ,
-        B1pp , B2pp , Gpp , phipp , Spp  , Fxpp  , Fypp  ,
-        B1_x , B2_x , G_x , phi_x , S_x  , Fx_x  , Fy_x  ,
-        B1_y , B2_y , G_y , phi_y , S_y  , Fx_y  , Fy_y  ,
-        B1p_x, B2p_x, Gp_x, phip_x, Sp_x , Fxp_x , Fyp_x ,
-        B1p_y, B2p_y, Gp_y, phip_y, Sp_y , Fxp_y , Fyp_y ,
-        B1_xx, B2_xx, G_xx, phi_xx, S_xx ,
-        B1_yy, B2_yy, G_yy, phi_yy, S_yy ,
-               B2_xy, G_xy, phi_xy, S_xy
+        potential, u, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
+        B1   ,  G   ,  S    , Fx    , Fy    , Sd, B1d, Gd, 
+        B1p  ,  Gp  ,  Sp   , Fxp   , Fyp   ,
+        B1pp ,  Gpp ,  Spp  , Fxpp  , Fypp  ,
+        B1_x ,  G_x ,  S_x  , Fx_x  , Fy_x  ,
+        B1_y ,  G_y ,  S_y  , Fx_y  , Fy_y  ,
+        B1p_x,  Gp_x,  Sp_x , Fxp_x , Fyp_x ,
+        B1p_y,  Gp_y,  Sp_y , Fxp_y , Fyp_y ,
+        B1_xx,  G_xx,  S_xx ,
+        B1_yy,  G_yy,  S_yy ,
+                G_xy,  S_xy
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
-    @tilde_outer("phi")
     @tilde_outer("S")
     @tilde_outer("Fx")
     @tilde_outer("Fy")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
-    @hat_outer("phi")
     @hat_outer("S")
     @hat_outer("Fx")
     @hat_outer("Fy")
 
     @bar_outer("B1")
-    @bar_outer("B2")
     @bar_outer("G")
-    @bar_outer("phi")
     @bar_outer("S")
 
     @star_outer("B1")
-    @star_outer("B2")
     @star_outer("G")
-    @star_outer("phi")
     @star_outer("S")
 
     @tilde_outer("Fxp")
@@ -501,10 +322,8 @@ function A_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
     @hat_outer("Fxp")
     @hat_outer("Fyp")
 
-    @cross_outer("B2")
     @cross_outer("G")
     @cross_outer("S")
-    @cross_outer("phi")
 
     VV = -3 -3/2 * phi^2 + phi^4*UU(phi,potential)
 
@@ -512,7 +331,6 @@ function A_eq_coeff!(ABCS::Vector, vars::Tuple, ::Outer)
 
 
     expB1   = exp(B1)
-    expB2   = exp(B2)
     sinh2G  = sinh(*(2, G))
     cosh2G  = cosh(*(2, G))
     coshGsq = cosh(G)^2
@@ -534,41 +352,35 @@ end
 function xi_t_eq_coeff(vars::Tuple, ::Outer)
     (
         kappa, xi, xi_x, xi_y, xi_xx, xi_yy, xi_xy,
-        B1   , B2   , G   , phi  , S    , Fx    , Fy    , Sd ,  B1d  , B2d  , Gd,  phid, A   ,
-        B1p  , B2p  , Gp  , phip , Sp   , Fxp   , Fyp   , Sdp,  B1dp , B2dp , Gdp,       Ap  ,
-        B1pp , B2pp , Gpp ,        Spp  , Fxpp  , Fypp  ,                                App ,
-        B1_x , B2_x , G_x , phi_x, S_x  , Fx_x  , Fy_x  , Sd_x, B1d_x, B2d_x, Gd_x,      A_x ,
-	B1_y , B2_y , G_y , phi_y, S_y  , Fx_y  , Fy_y  , Sd_y, B1d_y, B2d_y, Gd_y,      A_y ,
-        B1p_x, B2p_x, Gp_x,        Sp_x , Fxp_x , Fyp_x ,                                Ap_x,
-        B1p_y, B2p_y, Gp_y,        Sp_y , Fxp_y , Fyp_y ,                                Ap_y,
-                                                  Fy_xx ,                                A_xx,
-                                          Fx_yy ,                                        A_yy,
-                                          Fx_xy , Fy_xy ,                                A_xy,
+        B1   ,  G   ,  S    , Fx    , Fy    , Sd ,  B1d  , Gd,  A   ,
+        B1p  ,  Gp  ,  Sp   , Fxp   , Fyp   , Sdp,  B1dp , Gdp, Ap  ,
+        B1pp ,  Gpp ,  Spp  , Fxpp  , Fypp  ,                   App ,
+        B1_x ,  G_x ,  S_x  , Fx_x  , Fy_x  , Sd_x, B1d_x, Gd_x,A_x ,
+	B1_y ,  G_y ,  S_y  , Fx_y  , Fy_y  , Sd_y, B1d_y,Gd_y, A_y ,
+        B1p_x,  Gp_x,  Sp_x , Fxp_x , Fyp_x ,                   Ap_x,
+        B1p_y,  Gp_y,  Sp_y , Fxp_y , Fyp_y ,                   Ap_y,
+                                                  Fy_xx ,       A_xx,
+                                          Fx_yy ,               A_yy,
+                                          Fx_xy , Fy_xy ,       A_xy,
     ) = vars
 
     @tilde_outer("B1")
-    @tilde_outer("B2")
     @tilde_outer("G")
-    @tilde_outer("phi")
     @tilde_outer("S")
     @tilde_outer("Fx")
     @tilde_outer("Fy")
     @tilde_outer("Sd")
     @tilde_outer("B1d")
-    @tilde_outer("B2d")
     @tilde_outer("Gd")
     @tilde_outer("A")
 
     @hat_outer("B1")
-    @hat_outer("B2")
     @hat_outer("G")
-    @hat_outer("phi")
     @hat_outer("S")
     @hat_outer("Fx")
     @hat_outer("Fy")
     @hat_outer("Sd")
     @hat_outer("B1d")
-    @hat_outer("B2d")
     @hat_outer("Gd")
     @hat_outer("A")
 
@@ -579,7 +391,6 @@ function xi_t_eq_coeff(vars::Tuple, ::Outer)
     @star_outer("Fx")
 
     @tilde_outer("B1p")
-    @tilde_outer("B2p")
     @tilde_outer("Gp")
     @tilde_outer("Sp")
     @tilde_outer("Fxp")
@@ -587,7 +398,6 @@ function xi_t_eq_coeff(vars::Tuple, ::Outer)
     @tilde_outer("Ap")
 
     @hat_outer("B1p")
-    @hat_outer("B2p")
     @hat_outer("Gp")
     @hat_outer("Sp")
     @hat_outer("Fxp")

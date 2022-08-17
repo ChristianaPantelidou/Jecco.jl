@@ -36,23 +36,23 @@ function apply_dissipation_2D!(var_out, var, sys::System)
 end
 
 function apply_dissipation!(boundary::Boundary, cache::Boundary, sys::System)
-    a4  = geta4(boundary)
-    fx2 = getfx2(boundary)
-    fy2 = getfy2(boundary)
+    a3  = geta3(boundary)
+    fx1 = getfx1(boundary)
+    fy1 = getfy1(boundary)
 
-    a4_cache  = geta4(cache)
-    fx2_cache = getfx2(cache)
-    fy2_cache = getfy2(cache)
+    a3_cache  = geta3(cache)
+    fx1_cache = getfx1(cache)
+    fy1_cache = getfy1(cache)
 
     # the loops in these functions are threaded, so it's probably not worth it
     # to @spawn here
-    apply_dissipation_2D!( a4_cache,  a4, sys)
-    apply_dissipation_2D!(fx2_cache, fx2, sys)
-    apply_dissipation_2D!(fy2_cache, fy2, sys)
+    apply_dissipation_2D!( a3_cache,  a3, sys)
+    apply_dissipation_2D!(fx1_cache, fx1, sys)
+    apply_dissipation_2D!(fy1_cache, fy1, sys)
 
-    copyto!( a4,  a4_cache)
-    copyto!(fx2, fx2_cache)
-    copyto!(fy2, fy2_cache)
+    copyto!( a3,  a3_cache)
+    copyto!(fx1, fx1_cache)
+    copyto!(fy1, fy1_cache)
 
     nothing
 end
@@ -70,26 +70,20 @@ end
 function apply_dissipation!(bulkevol::BulkEvolved, cache::BulkEvolved,
                             sys::System)
     B1  = getB1(bulkevol)
-    B2  = getB2(bulkevol)
     G   = getG(bulkevol)
-    phi = getphi(bulkevol)
 
     B1_cache  = getB1(cache)
-    B2_cache  = getB2(cache)
     G_cache   = getG(cache)
-    phi_cache = getphi(cache)
+
 
     # the loops in these functions are threaded, so it's probably not worth it
     # to @spawn here
     apply_dissipation_3D!( B1_cache,  B1, sys)
-    apply_dissipation_3D!( B2_cache,  B2, sys)
     apply_dissipation_3D!(  G_cache,   G, sys)
-    apply_dissipation_3D!(phi_cache, phi, sys)
+
 
     copyto!( B1,  B1_cache)
-    copyto!( B2,  B2_cache)
     copyto!(  G,   G_cache)
-    copyto!(phi, phi_cache)
 
     nothing
 end
@@ -98,9 +92,7 @@ end
 function (filters::Filters)(bulkevol::BulkEvolved)
     @sync begin
         @spawn filters.exp_filter(bulkevol.B1)
-        @spawn filters.exp_filter(bulkevol.B2)
         @spawn filters.exp_filter(bulkevol.G)
-        @spawn filters.exp_filter(bulkevol.phi)
     end
     nothing
 end

@@ -106,14 +106,10 @@ function get_data(ff::VEVTimeSeries, it::Int)
         f, chart = get_px(ff.ts, it=it)
     elseif ff.vev == :py
         f, chart = get_py(ff.ts, it=it)
-    elseif ff.vev == :pz
-        f, chart = get_pz(ff.ts, it=it)
     elseif ff.vev == :Jx
         f, chart = get_Jx(ff.ts, it=it)
     elseif ff.vev == :pxy
         f, chart = get_pxy(ff.ts, it=it)
-    elseif ff.vev == :Ophi
-        f, chart = get_Ophi(ff.ts, it=it)
     else
         error("Unknown VEV")
     end
@@ -224,9 +220,7 @@ function convert_to_mathematica(dirname::String; outfile::String="data_mathemati
     Jy   = zeros(Nt,Nx,Ny)
     px   = zeros(Nt,Nx,Ny)
     py   = zeros(Nt,Nx,Ny)
-    pz   = zeros(Nt,Nx,Ny)
     pxy  = zeros(Nt,Nx,Ny)
-    Ophi = zeros(Nt,Nx,Ny)
 
     for (idx,it) in enumerate(iterations)
         en[idx,:,:]   .= get_energy(ts, it=it)[1][1,:,:]
@@ -234,9 +228,7 @@ function convert_to_mathematica(dirname::String; outfile::String="data_mathemati
         Jy[idx,:,:]   .= get_Jy(ts, it=it)[1][1,:,:]
         px[idx,:,:]   .= get_px(ts, it=it)[1][1,:,:]
         py[idx,:,:]   .= get_py(ts, it=it)[1][1,:,:]
-        pz[idx,:,:]   .= get_pz(ts, it=it)[1][1,:,:]
         pxy[idx,:,:]  .= get_pxy(ts, it=it)[1][1,:,:]
-        Ophi[idx,:,:] .= get_Ophi(ts, it=it)[1][1,:,:]
 
         t[idx] = ts.current_t
     end
@@ -248,7 +240,7 @@ function convert_to_mathematica(dirname::String; outfile::String="data_mathemati
     for i in 1:Nt
         for j in 1:Nx
             for k in 1:Ny
-                T_m[:,n] = [t[i] x[j] y[k] en[i,j,k] Jx[i,j,k] Jy[i,j,k] px[i,j,k] pxy[i,j,k] py[i,j,k] pz[i,j,k] Ophi[i,j,k]]
+                T_m[:,n] = [t[i] x[j] y[k] en[i,j,k] Jx[i,j,k] Jy[i,j,k] px[i,j,k] pxy[i,j,k] py[i,j,k]]
                 n += 1
             end
         end
@@ -261,8 +253,7 @@ function convert_to_mathematica(dirname::String; outfile::String="data_mathemati
     close(fid)
 end
 
-function convert_to_mathematica_local(dirname::String; outfile::String="local_data_mathematica.h5")#,
-                                #phi0, oophiM2)
+function convert_to_mathematica_local(dirname::String; outfile::String="local_data_mathematica.h5")#)
 
     ts = OpenPMDTimeSeries(dirname, prefix="boundary_")
 
